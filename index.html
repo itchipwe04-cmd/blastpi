@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PiBlast 🎮</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a0533;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* HEADER */
+    #header {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px 6px;
+    }
+    #logo { font-size: 22px; font-weight: 900; color: #f4c430; letter-spacing: 1px; }
+    #logo span { color: #a78bfa; }
+    #score-box { text-align: right; }
+    #score-label { font-size: 11px; color: #a78bfa; text-transform: uppercase; }
+    #score { font-size: 26px; font-weight: 800; color: #fff; }
+    #best { font-size: 11px; color: #aaa; }
+
+    /* GAME CANVAS */
+    #game-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    canvas#board {
+      display: block;
+      border-radius: 16px;
+      border: 2px solid #3b1e6e;
+      background: #120228;
+      touch-action: none;
+    }
+
+    /* PIECE TRAY */
+    #tray {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 10px 8px;
+      background: #1e0845;
+      border-radius: 16px;
+      margin-top: 10px;
+    }
+    .piece-slot {
+      width: 90px; height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: #120228;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .piece-slot.selected { border: 2px solid #f4c430; transform: scale(1.08); }
+    .piece-slot canvas { display: block; }
+
+    /* BUTTONS */
+    #btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .btn {
+      padding: 10px 22px;
+      border: none;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:active { opacity: 0.7; }
+    #btn-new { background: #7c3aed; color: #fff; }
+    #btn-pi  { background: #f4c430; color: #1a0533; }
+
+    /* PI MODAL */
+    #pi-modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      align-items: center;
+      justify-content: center;
+      z-index: 99;
+    }
+    #pi-modal.open { display: flex; }
+    #pi-card {
+      background: #1e0845;
+      border-radius: 20px;
+      padding: 28px 24px;
+      width: 300px;
+      text-align: center;
+      border: 1px solid #7c3aed;
+    }
+    #pi-card h2 { font-size: 20px; color: #f4c430; margin-bottom: 8px; }
+    #pi-card p  { font-size: 13px; color: #ccc; margin-bottom: 20px; line-height: 1.5; }
+    .pi-option {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #2d0f6b; border-radius: 12px; padding: 12px 16px;
+      margin-bottom: 10px; cursor: pointer; transition: background 0.2s;
+    }
+    .pi-option:hover { background: #3b1e80; }
+    .pi-option .pi-label { font-size: 14px; font-weight: 700; }
+    .pi-option .pi-price { font-size: 13px; color: #f4c430; font-weight: 800; }
+    #btn-close-pi {
+      margin-top: 6px; background: transparent; border: 1px solid #7c3aed;
+      color: #a78bfa; border-radius: 20px; padding: 8px 20px;
+      cursor: pointer; font-size: 13px;
+    }
+
+    /* GAME OVER */
+    #gameover {
+      display: none;
+      position: absolute; inset: 0;
+      background: rgba(18,2,40,0.92);
+      border-radius: 16px;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 10;
+    }
+    #gameover.open { display: flex; }
+    #gameover h2 { font-size: 28px; color: #f4c430; font-weight: 900; margin-bottom: 6px; }
+    #gameover p  { color: #ccc; font-size: 15px; margin-bottom: 20px; }
+    #btn-restart { background: #7c3aed; color: #fff; padding: 12px 32px; border-radius: 24px; border: none; font-size: 16px; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="logo">Pi<span>Blast</span></div>
+  <div id="score-box">
+    <div id="score-label">Score</div>
+    <div id="score">0</div>
+    <div id="best">Best: <span id="best-val">0</span></div>
+  </div>
+</div>
+
+<!-- BOARD -->
+<div id="game-wrap">
+  <canvas id="board"></canvas>
+  <div id="gameover">
+    <h2>Game Over!</h2>
+    <p>Score: <span id="go-score">0</span></p>
+    <button id="btn-restart">Play Again</button>
+  </div>
+</div>
+
+<!-- PIECE TRAY -->
+<div id="tray">
+  <div class="piece-slot" id="slot-0"><canvas id="pc0"></canvas></div>
+  <div class="piece-slot" id="slot-1"><canvas id="pc1"></canvas></div>
+  <div class="piece-slot" id="slot-2"><canvas id="pc2"></canvas></div>
+</div>
+
+<!-- BUTTONS -->
+<div id="btn-row">
+  <button class="btn" id="btn-new">New Game</button>
+  <button class="btn" id="btn-pi">⊕ Use Pi</button>
+</div>
+
+<!-- PI MODAL -->
+<div id="pi-modal">
+  <div id="pi-card">
+    <h2>⊕ Pi Store</h2>
+    <p>Spend Pi to get power-ups and keep playing!</p>
+    <div class="pi-option" onclick="piPay(0.1,'undo')">
+      <span class="pi-label">↩ Undo Move</span>
+      <span class="pi-price">0.1 π</span>
+    </div>
+    <div class="pi-option" onclick="piPay(0.5,'clear_row')">
+      <span class="pi-label">💥 Clear a Row</span>
+      <span class="pi-price">0.5 π</span>
+    </div>
+    <div class="pi-option" onclick="piPay(1,'continue')">
+      <span class="pi-label">❤️ Continue Game</span>
+      <span class="pi-price">1.0 π</span>
+    </div>
+    <button id="btn-close-pi" onclick="closePiModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- PI SDK -->
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────
+const PI_APP_ID = "blastpi-spz4";
+const COLS = 10, ROWS = 10;
+const CELL = Math.min(Math.floor((window.innerWidth - 32) / COLS), 38);
+const COLORS = ["#7c3aed","#2563eb","#16a34a","#dc2626","#d97706","#0891b2","#be185d","#65a30d"];
+
+// ─── STATE ─────────────────────────────────────────────────────
+let board = [], score = 0, best = 0, selectedPiece = -1, pieces = [];
+let prevBoard = null, prevScore = 0; // for undo
+
+// ─── CANVAS SETUP ──────────────────────────────────────────────
+const cvs = document.getElementById('board');
+const ctx = cvs.getContext('2d');
+cvs.width  = COLS * CELL;
+cvs.height = ROWS * CELL;
+
+// ─── PIECE SHAPES ──────────────────────────────────────────────
+const SHAPES = [
+  [[1,1,1],[1,0,0]],        // L
+  [[1,1,1],[0,0,1]],        // J
+  [[1,1],[1,1]],            // O 2x2
+  [[1,1,1,1]],              // I horiz
+  [[1],[1],[1],[1]],        // I vert
+  [[1,1,1]],                // line 3
+  [[1],[1],[1]],            // line 3 vert
+  [[0,1],[1,1],[1,0]],      // S
+  [[1,0],[1,1],[0,1]],      // Z
+  [[1,1,1],[0,1,0]],        // T
+  [[1,1],[1,0]],            // small L
+  [[1]],                    // dot
+  [[1,1]],                  // domino
+  [[1,1,1],[1,0,0],[1,0,0]],// big L
+];
+
+function randShape() {
+  const s = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+  return { shape: s, color };
+}
+
+// ─── INIT ───────────────────────────────────────────────────────
+function initBoard() {
+  board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
+}
+
+function newGame() {
+  score = 0; selectedPiece = -1; prevBoard = null;
+  initBoard();
+  spawnPieces();
+  updateScore();
+  drawBoard();
+  document.getElementById('gameover').classList.remove('open');
+}
+
+function spawnPieces() {
+  pieces = [randShape(), randShape(), randShape()];
+  drawTray();
+}
+
+// ─── DRAW BOARD ─────────────────────────────────────────────────
+function drawBoard(ghostR = -1, ghostC = -1, ghostShape = null, ghostColor = null) {
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+  // grid lines
+  ctx.strokeStyle = "#2a0a5e";
+  ctx.lineWidth = 0.5;
+  for (let r = 0; r <= ROWS; r++) {
+    ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(COLS*CELL, r*CELL); ctx.stroke();
+  }
+  for (let c = 0; c <= COLS; c++) {
+    ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, ROWS*CELL); ctx.stroke();
+  }
+
+  // cells
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c]) drawCell(ctx, c, r, board[r][c]);
+    }
+  }
+
+  // ghost
+  if (ghostShape && ghostR >= 0) {
+    ctx.globalAlpha = 0.35;
+    ghostShape.forEach((row, dr) => row.forEach((v, dc) => {
+      if (v) drawCell(ctx, ghostC + dc, ghostR + dr, ghostColor);
+    }));
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawCell(c2d, col, row, color, size = CELL) {
+  const x = col * size, y = row * size, pad = 2;
+  c2d.fillStyle = color;
+  c2d.beginPath();
+  c2d.roundRect(x + pad, y + pad, size - pad*2, size - pad*2, 4);
+  c2d.fill();
+  // shine
+  c2d.fillStyle = "rgba(255,255,255,0.18)";
+  c2d.beginPath();
+  c2d.roundRect(x + pad, y + pad, size - pad*2, (size - pad*2)*0.4, [4,4,0,0]);
+  c2d.fill();
+}
+
+// ─── TRAY ───────────────────────────────────────────────────────
+function drawTray() {
+  for (let i = 0; i < 3; i++) {
+    const slot = document.getElementById(`slot-${i}`);
+    const pc = document.getElementById(`pc${i}`);
+    const p = pieces[i];
+    slot.classList.toggle('selected', i === selectedPiece);
+
+    if (!p) { pc.width = 80; pc.height = 80; continue; }
+
+    const s = p.shape;
+    const cSize = Math.min(Math.floor(72 / Math.max(s.length, s[0].length)), 22);
+    pc.width  = s[0].length * cSize;
+    pc.height = s.length    * cSize;
+    const tc = pc.getContext('2d');
+    tc.clearRect(0,0,pc.width,pc.height);
+    s.forEach((row, r) => row.forEach((v, c) => {
+      if (v) drawCell(tc, c, r, p.color, cSize);
+    }));
+  }
+}
+
+// ─── PLACE PIECE ────────────────────────────────────────────────
+function canPlace(shape, r, c) {
+  return shape.every((row, dr) =>
+    row.every((v, dc) => !v || (
+      r+dr >= 0 && r+dr < ROWS &&
+      c+dc >= 0 && c+dc < COLS &&
+      !board[r+dr][c+dc]
+    ))
+  );
+}
+
+function placePiece(shape, color, r, c) {
+  prevBoard = board.map(row => [...row]);
+  prevScore = score;
+  shape.forEach((row, dr) => row.forEach((v, dc) => {
+    if (v) board[r+dr][c+dc] = color;
+  }));
+  clearLines();
+}
+
+function clearLines() {
+  let cleared = 0;
+  // full rows
+  let rowsToClear = [];
+  for (let r = 0; r < ROWS; r++) {
+    if (board[r].every(c => c)) rowsToClear.push(r);
+  }
+  // full cols
+  let colsToClear = [];
+  for (let c = 0; c < COLS; c++) {
+    if (board.every(row => row[c])) colsToClear.push(c);
+  }
+  rowsToClear.forEach(r => { board[r] = Array(COLS).fill(null); cleared++; });
+  colsToClear.forEach(c => { board.forEach(row => { row[c] = null; }); cleared++; });
+
+  if (cleared > 0) {
+    const bonus = cleared > 1 ? cleared * cleared : 1;
+    score += cleared * 100 * bonus;
+    if (score > best) { best = score; localStorage.setItem('pb_best', best); }
+    updateScore();
+  }
+}
+
+function updateScore() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('best-val').textContent = best;
+}
+
+// ─── CHECK GAME OVER ────────────────────────────────────────────
+function checkGameOver() {
+  const alive = pieces.some((p, i) => {
+    if (!p) return false;
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (canPlace(p.shape, r, c)) return true;
+    return false;
+  });
+  if (!alive) {
+    document.getElementById('go-score').textContent = score;
+    document.getElementById('gameover').classList.add('open');
+  }
+}
+
+// ─── INPUT — CLICK / TAP ────────────────────────────────────────
+let lastTap = { r: -1, c: -1 };
+
+for (let i = 0; i < 3; i++) {
+  document.getElementById(`slot-${i}`).addEventListener('click', () => {
+    if (!pieces[i]) return;
+    selectedPiece = (selectedPiece === i) ? -1 : i;
+    drawTray();
+    drawBoard();
+  });
+}
+
+function getCellFromEvent(e) {
+  const rect = cvs.getBoundingClientRect();
+  const scaleX = cvs.width / rect.width;
+  const scaleY = cvs.height / rect.height;
+  const x = (e.clientX ?? e.touches[0].clientX) - rect.left;
+  const y = (e.clientY ?? e.touches[0].clientY) - rect.top;
+  return {
+    c: Math.floor(x * scaleX / CELL),
+    r: Math.floor(y * scaleY / CELL)
+  };
+}
+
+cvs.addEventListener('click', e => {
+  if (selectedPiece < 0 || !pieces[selectedPiece]) return;
+  const {r, c} = getCellFromEvent(e);
+  const p = pieces[selectedPiece];
+  // center piece on tap
+  const pr = r - Math.floor(p.shape.length / 2);
+  const pc2 = c - Math.floor(p.shape[0].length / 2);
+  if (canPlace(p.shape, pr, pc2)) {
+    placePiece(p.shape, p.color, pr, pc2);
+    pieces[selectedPiece] = null;
+    score += p.shape.flat().filter(Boolean).length * 10;
+    updateScore();
+    if (score > best) { best = score; localStorage.setItem('pb_best', best); }
+    if (pieces.every(p => !p)) spawnPieces();
+    selectedPiece = -1;
+    drawBoard();
+    drawTray();
+    checkGameOver();
+  }
+});
+
+cvs.addEventListener('mousemove', e => {
+  if (selectedPiece < 0 || !pieces[selectedPiece]) return;
+  const {r, c} = getCellFromEvent(e);
+  const p = pieces[selectedPiece];
+  const pr = r - Math.floor(p.shape.length / 2);
+  const pc2 = c - Math.floor(p.shape[0].length / 2);
+  drawBoard(pr, pc2, p.shape, p.color);
+});
+
+cvs.addEventListener('mouseleave', () => drawBoard());
+
+// ─── PI SDK ─────────────────────────────────────────────────────
+let piReady = false;
+try {
+  Pi.init({ version: "2.0", sandbox: true });
+  Pi.authenticate(['payments'], {
+    onIncompletePaymentFound: (payment) => { console.log('incomplete', payment); }
+  }).then(auth => {
+    if (auth) { piReady = true; console.log("Pi auth OK", auth.user.username); }
+  }).catch(e => console.warn("Pi auth skipped:", e));
+} catch(e) {
+  console.warn("Pi SDK not available (non-Pi browser):", e.message);
+}
+
+function piPay(amount, item) {
+  closePiModal();
+  if (!piReady) {
+    alert("Please open this game inside Pi Browser to use Pi payments.");
+    return;
+  }
+  Pi.createPayment({
+    amount: amount,
+    memo: `PiBlast – ${item}`,
+    metadata: { item }
+  }, {
+    onReadyForServerApproval: (paymentId) => {
+      console.log("Approve:", paymentId);
+      // TODO: call your server to approve
+      applyPowerup(item);
+    },
+    onReadyForServerCompletion: (paymentId, txid) => {
+      console.log("Complete:", paymentId, txid);
+    },
+    onCancel: (paymentId) => console.log("Cancelled", paymentId),
+    onError: (err, payment) => console.error("Pi error", err, payment)
+  });
+}
+
+function applyPowerup(item) {
+  if (item === 'undo') {
+    if (prevBoard) {
+      board = prevBoard.map(r => [...r]);
+      score = prevScore;
+      updateScore();
+      drawBoard();
+      alert("↩ Undo applied!");
+    } else alert("Nothing to undo.");
+  } else if (item === 'clear_row') {
+    // clear most filled row
+    let maxFill = -1, maxRow = 0;
+    board.forEach((row, i) => {
+      const fill = row.filter(Boolean).length;
+      if (fill > maxFill) { maxFill = fill; maxRow = i; }
+    });
+    board[maxRow] = Array(COLS).fill(null);
+    score += 150;
+    updateScore();
+    drawBoard();
+    alert("💥 Row cleared!");
+  } else if (item === 'continue') {
+    document.getElementById('gameover').classList.remove('open');
+    spawnPieces();
+    drawBoard();
+    alert("❤️ Game continues!");
+  }
+}
+
+// ─── PI MODAL ───────────────────────────────────────────────────
+document.getElementById('btn-pi').addEventListener('click', () => {
+  document.getElementById('pi-modal').classList.add('open');
+});
+function closePiModal() {
+  document.getElementById('pi-modal').classList.remove('open');
+}
+
+// ─── RESTART ────────────────────────────────────────────────────
+document.getElementById('btn-new').addEventListener('click', newGame);
+document.getElementById('btn-restart').addEventListener('click', newGame);
+
+// ─── BOOT ───────────────────────────────────────────────────────
+best = parseInt(localStorage.getItem('pb_best') || '0');
+newGame();
+</script>
+</body>
+</html>
